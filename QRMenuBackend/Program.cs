@@ -3,6 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using QRMenuBackend.Data;
 using QRMenuBackend.Repositories;
 using QRMenuBackend.Services;
+using System.Globalization;
+
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 var builder = WebApplication.CreateBuilder(args);
 
