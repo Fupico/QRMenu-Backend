@@ -1,27 +1,76 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using QRMenuBackend.Data;
-using QRMenuBackend.Repositories;
-using QRMenuBackend.Services;
-using System.Globalization;
+    using Microsoft.AspNetCore.Authentication.JwtBearer;
+    using Microsoft.AspNetCore.Identity;
+    using Microsoft.EntityFrameworkCore;
+    using Microsoft.IdentityModel.Tokens;
+    using QRMenuBackend.Data;
+    using QRMenuBackend.Repositories;
+    using QRMenuBackend.Services;
+    using System.Globalization;
+    using System.Text;
 
-CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+    CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+    CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
-var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder(args);
 
-// Veritabanı bağlantısı ekleme
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    builder.WebHost.ConfigureKestrel(serverOptions =>
+    {
+        serverOptions.ListenAnyIP(1923, listenOptions =>
+        {
+            listenOptions.UseHttps();
+        });
+    });
 
-// Identity ekleme
-builder.Services.AddIdentity<IdentityUser, IdentityRole>()
-    .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
+    // JWT ayarlarını almak
+    var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+
+    // JWT kimlik doğrulama eklemek
+    builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? string.Empty))
+        };
+    });
+
+    // Veritabanı bağlantısı ekleme
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+    // Identity ekleme
+    builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+        .AddEntityFrameworkStores<AppDbContext>()
+        .AddDefaultTokenProviders();
+
+    // Authorization ekleme
+    builder.Services.AddAuthorization(); // Bu satırı ekleyin
 
 // Repository ve Service ekleme
 builder.Services.AddScoped<IRepository<IdentityUser>, UserRepository>();
 builder.Services.AddScoped<IService<IdentityUser>, UserService>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+    });
+});
+
+// Controller'ları eklemek için bu satırı ekleyin
+builder.Services.AddControllers(); // Burayı eklemeyi unutmayın
 
 // Swagger ekleme
 builder.Services.AddEndpointsApiExplorer();
@@ -29,39 +78,25 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Swagger ve Middleware ekleme
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c => 
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+        c.RoutePrefix = string.Empty; // Ana dizinde erişim
+    });
 }
+
+app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
+app.UseHsts();
 
-// Örnek API
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.UseAuthentication(); // JWT kimlik doğrulamasını eklemek
+app.UseAuthorization();   // Yetkilendirme middleware'i
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast")
-.WithOpenApi();
+// Controller'ları ekleme
+app.MapControllers(); // Tüm controller uç noktalarını ekler
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
