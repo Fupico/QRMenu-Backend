@@ -7,6 +7,7 @@
     using QRMenuBackend.Services;
     using System.Globalization;
     using System.Text;
+using Microsoft.OpenApi.Models; // OpenApiInfo ve OpenApiSecurityScheme için
 
     CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
     CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
@@ -57,8 +58,11 @@
     builder.Services.AddAuthorization(); // Bu satırı ekleyin
 
 // Repository ve Service ekleme
+builder.Services.AddScoped<TokenService>();
+
 builder.Services.AddScoped<IRepository<IdentityUser>, UserRepository>();
 builder.Services.AddScoped<IService<IdentityUser>, UserService>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", builder =>
@@ -73,8 +77,37 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers(); // Burayı eklemeyi unutmayın
 
 // Swagger ekleme
+// Swagger ekleme
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "My API V1", Version = "v1" });
+
+    // JWT Bearer token için güvenlik tanımı
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Please enter a valid token",
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
+
 
 var app = builder.Build();
 
@@ -95,6 +128,7 @@ app.UseHsts();
 
 app.UseAuthentication(); // JWT kimlik doğrulamasını eklemek
 app.UseAuthorization();   // Yetkilendirme middleware'i
+
 
 // Controller'ları ekleme
 app.MapControllers(); // Tüm controller uç noktalarını ekler

@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using System.Threading.Tasks;
+using QRMenuBackend.Models;
+using System.Linq; // Ekleyin
+using QRMenuBackend.Services; // TokenService'in bulunduğu namespace
+using System.Security.Claims; // Ekleyin
 
 namespace QRMenuBackend.Controllers
 {
@@ -11,55 +13,69 @@ namespace QRMenuBackend.Controllers
     [Route("api/[controller]")]
     public class LoginController : ControllerBase
     {
-        private readonly IConfiguration _configuration;
+        private readonly UserManager<IdentityUser> _userManager;
+        private readonly TokenService _tokenService; // TokenService için referans
 
-        public LoginController(IConfiguration configuration)
+        public LoginController(UserManager<IdentityUser> userManager, TokenService tokenService)
         {
-            _configuration = configuration;
+            _userManager = userManager;
+            _tokenService = tokenService; // TokenService'i başlat
         }
 
         [AllowAnonymous]
-    [HttpPost("logologin")] // Burada özel bir route tanımlıyoruz
-
+        [HttpPost("login")]
         public IActionResult Login([FromBody] LoginModel model)
         {
-            if (model.Username == "testuser" && model.Password == "password")
+            var user = _userManager.FindByNameAsync(model.Username).Result;
+
+            if (user != null && _userManager.CheckPasswordAsync(user, model.Password).Result)
             {
-                var token = GenerateJwtToken();
-                return Ok(new { token });
+                var token = _tokenService.GenerateJwtToken(model.Username);
+                return Ok(new ApiResponse<string>(token));
             }
 
-            return Unauthorized();
+            return Unauthorized(new ApiResponse<string>("Invalid credentials."));
         }
 
-        private string GenerateJwtToken()
-        {
-            var jwtSettings = _configuration.GetSection("JwtSettings");
-            var keyBytes = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? string.Empty);
-            var secretKey = new SymmetricSecurityKey(keyBytes);
-            var signinCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
-
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.Name, "testuser"),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
-
-            var tokenOptions = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddMinutes(Convert.ToDouble(jwtSettings["ExpiryInMinutes"])),
-                signingCredentials: signinCredentials
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(tokenOptions);
-        }
-    }
-
-    public class LoginModel
+ [AllowAnonymous]
+[HttpPost("register")]
+public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
+{
+    if (registerDto == null || string.IsNullOrEmpty(registerDto.Username) || string.IsNullOrEmpty(registerDto.Password) || string.IsNullOrEmpty(registerDto.Email))
     {
-        public string? Username { get; set; }
-        public string? Password { get; set; }
+        return BadRequest(new ApiResponse<string>("Invalid registration details."));
     }
+
+    var user = new IdentityUser
+    {
+        UserName = registerDto.Username,
+        Email = registerDto.Email
+    };
+
+    var result = await _userManager.CreateAsync(user, registerDto.Password);
+
+    if (result.Succeeded)
+    {
+        return Ok(new ApiResponse<string>("User registered successfully."));
+    }
+
+    // Hataları kontrol et
+    if (result.Errors != null && result.Errors.Any())
+    {
+        return BadRequest(new ApiResponse<string>(
+            "User registration failed: " + 
+            string.Join(", ", result.Errors.Select(e => e.Description))
+        ));
+    }
+
+    // Eğer hata yoksa, genel bir hata mesajı döndür
+    return BadRequest(new ApiResponse<string>("User registration failed."));
 }
+      [Authorize]
+        [HttpGet("protected")]
+        public IActionResult GetProtectedResource()
+        {
+            return Ok("This is a protected resource.");
+        }
+    
+}}
