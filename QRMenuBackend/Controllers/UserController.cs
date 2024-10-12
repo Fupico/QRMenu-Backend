@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using QRMenuBackend.Services;
 using System.Threading.Tasks;
-
+using Microsoft.AspNetCore.Authorization;
 namespace QRMenuBackend.Controllers
 {
     [ApiController]
@@ -29,5 +29,15 @@ namespace QRMenuBackend.Controllers
             await _userService.AddAsync(user);
             return Ok();
         }
+
+
+
+         
+
+     [HttpGet("data")]
+    public IActionResult GetProtectedData()
+    {
+        return Ok(new { Message = "This is a protected data!" });
+    }
     }
 }
