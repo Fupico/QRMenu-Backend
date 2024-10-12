@@ -65,11 +65,5 @@ public class LoginController : BaseController
         );
     }
 
-[FuPiCoAuthorize]
-[HttpGet("data")]
-public IActionResult GetProtectedData()
-{
-    return Ok(new { Message = "This is a protected data!" });
-}
    }
    }

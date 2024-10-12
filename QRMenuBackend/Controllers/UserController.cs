@@ -29,15 +29,5 @@ namespace QRMenuBackend.Controllers
             await _userService.AddAsync(user);
             return Ok();
         }
-
-
-
-         
-
-     [HttpGet("data")]
-    public IActionResult GetProtectedData()
-    {
-        return Ok(new { Message = "This is a protected data!" });
-    }
     }
 }

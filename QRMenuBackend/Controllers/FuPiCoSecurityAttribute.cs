@@ -5,11 +5,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Text;
 
-public class FuPiCoAuthorizeAttribute : Attribute, IAuthorizationFilter
+public class FuPiCoSecurityAttribute : Attribute, IAuthorizationFilter
 {
     public void OnAuthorization(AuthorizationFilterContext context)
     {
-        var token = context.HttpContext.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+        var token = context.HttpContext.Request.Headers["FuPiCo-Security"].FirstOrDefault()?.Split(" ").Last();
 
         if (string.IsNullOrEmpty(token))
         {

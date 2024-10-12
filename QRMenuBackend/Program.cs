@@ -80,14 +80,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "My API V1", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "FuPiCo Api", Version = "v1" });
 
     // JWT Bearer token için güvenlik tanımı
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
         Description = "Please enter a valid token",
-        Name = "Authorization",
+        Name = "FuPiCo-Security",
         Type = SecuritySchemeType.ApiKey
     });
 
@@ -108,14 +108,18 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+app.UseStaticFiles(); // wwwroot içindeki statik dosyaları sunmak için
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "FuPiCo Api");
         c.RoutePrefix = string.Empty; // Ana dizinde erişim
+
+        // custom.js dosyasını dahil ediyoruz
+        c.InjectJavascript("/swagger-ui/custom.js");
     });
 }
 
