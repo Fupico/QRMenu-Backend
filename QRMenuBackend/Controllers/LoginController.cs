@@ -3,67 +3,71 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using System.Threading.Tasks;
 using QRMenuBackend.Models;
-using System.Linq; // Ekleyin
-using QRMenuBackend.Services; // TokenService'in bulunduğu namespace
-using System.Security.Claims; // Ekleyin
+using System.Linq;
+using QRMenuBackend.Services;
+using System.Security.Claims;
 
 namespace QRMenuBackend.Controllers
 {
-   [ApiController]
-[Route("api/[controller]")]
-public class LoginController : BaseController
-{
-    private readonly UserManager<IdentityUser> _userManager;
-    private readonly TokenService _tokenService;
-
-    public LoginController(UserManager<IdentityUser> userManager, TokenService tokenService)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class LoginController : BaseController
     {
-        _userManager = userManager;
-        _tokenService = tokenService;
-    }
+        private readonly UserManager<IdentityUser> _userManager;
+        private readonly TokenService _tokenService;
 
-    [AllowAnonymous]
-    [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginModel model)
-    {
-        var user = _userManager.FindByNameAsync(model.Username).Result;
-
-        if (user != null && _userManager.CheckPasswordAsync(user, model.Password).Result)
+        public LoginController(UserManager<IdentityUser> userManager, TokenService tokenService)
         {
-            var token = _tokenService.GenerateJwtToken(model.Username);
-            return SuccessResponse(token, "Login successful");
+            _userManager = userManager;
+            _tokenService = tokenService;
         }
 
-        return ErrorResponse("Invalid credentials.", new List<string> { "Kullanıcı adı veya şifre hatalı." }, 401);
-    }
-
-    [AllowAnonymous]
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
-    {
-        if (registerDto == null || string.IsNullOrEmpty(registerDto.Username) || string.IsNullOrEmpty(registerDto.Password) || string.IsNullOrEmpty(registerDto.Email))
+        [AllowAnonymous]
+        [HttpPost("login")]
+        public IActionResult Login([FromBody] LoginModel model)
         {
-            return ErrorResponse("Invalid registration details.");
+            if (model == null || string.IsNullOrWhiteSpace(model.Username) || string.IsNullOrWhiteSpace(model.Password))
+            {
+                return ErrorResponse("Invalid login details.");
+            }
+
+            var user = _userManager.FindByNameAsync(model.Username).Result;
+
+            if (user != null && _userManager.CheckPasswordAsync(user, model.Password).Result)
+            {
+                var token = _tokenService.GenerateJwtToken(model.Username);
+                return SuccessResponse(token, "Login successful");
+            }
+
+            return ErrorResponse("Invalid credentials.", new List<string> { "Kullanıcı adı veya şifre hatalı." }, 401);
         }
 
-        var user = new IdentityUser
+        [AllowAnonymous]
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
-            UserName = registerDto.Username,
-            Email = registerDto.Email
-        };
+            if (registerDto == null || string.IsNullOrEmpty(registerDto.Username) || string.IsNullOrEmpty(registerDto.Password) || string.IsNullOrEmpty(registerDto.Email))
+            {
+                return ErrorResponse("Invalid registration details.");
+            }
 
-        var result = await _userManager.CreateAsync(user, registerDto.Password);
+            var user = new IdentityUser
+            {
+                UserName = registerDto.Username,
+                Email = registerDto.Email
+            };
 
-        if (result.Succeeded)
-        {
-            return SuccessResponse("User registered successfully.");
+            var result = await _userManager.CreateAsync(user, registerDto.Password);
+
+            if (result.Succeeded)
+            {
+                return SuccessResponse("User registered successfully.");
+            }
+
+            return ErrorResponse(
+                "User registration failed.",
+                result.Errors?.Select(e => e.Description).ToList() ?? new List<string>()  // Nullable kontrol
+            );
         }
-
-        return ErrorResponse(
-            "User registration failed.",
-            result.Errors?.Select(e => e.Description).ToList()
-        );
     }
-
-   }
-   }
+}
