@@ -68,32 +68,55 @@ public async Task<IActionResult> AddOrUpdateCompany([FromBody] AddCompanyDto com
 
 
 
-
-
-
-
 [FuPiCoSecurity]
-
-[HttpPost("addFoodGroup")]
-public async Task<IActionResult> AddFoodGroup([FromBody] AddFoodGroupDto foodGroupDto)
+[HttpPost("addOrUpdateFoodGroup")]
+public async Task<IActionResult> AddOrUpdateFoodGroup([FromBody] AddFoodGroupDto foodGroupDto)
 {
-    var company = await _context.Companies.FindAsync(foodGroupDto.CompanyId);
-    if (company == null)
-        return NotFound("Şirket bulunamadı.");
+    // Token'dan gelen userId'yi al
+    var userId = HttpContext.Items["userId"]?.ToString();
 
-    var foodGroup = new FoodGroupEntity
+    if (string.IsNullOrEmpty(userId))
     {
-        CompanyId = foodGroupDto.CompanyId,
-        GroupName = foodGroupDto.GroupName,
-        Description = foodGroupDto.Description,
-        CreatedAt = DateTime.Now
-    };
+        return Unauthorized("Kullanıcı ID'si bulunamadı.");
+    }
 
-    _context.FoodGroups.Add(foodGroup);
-    await _context.SaveChangesAsync();
-    return Ok(foodGroup);
+    // Kullanıcının oluşturduğu şirketi al
+    var company = await _context.Companies.FirstOrDefaultAsync(c => c.CreatedBy == userId);
+    if (company == null)
+    {
+        return NotFound("Şirket bulunamadı.");
+    }
+
+    // Aynı şirket altında aynı grup ismi ve açıklamaya sahip bir gıda grubu var mı kontrol et
+    var existingFoodGroup = await _context.FoodGroups
+        .FirstOrDefaultAsync(fg => fg.CompanyId == company.CompanyId 
+&& fg.GroupName == foodGroupDto.GroupName
+&& fg.Description == foodGroupDto.Description);
+    
+    if (existingFoodGroup != null)
+    {
+        // Gıda grubu var, güncelleme yap
+        existingFoodGroup.UpdatedAt = DateTime.Now;  // Güncelleme zamanı
+        _context.FoodGroups.Update(existingFoodGroup);
+        await _context.SaveChangesAsync();
+        return Ok(existingFoodGroup);  // Güncellenmiş gıda grubunu döndür
+    }
+    else
+    {
+        // Yeni gıda grubu ekle
+        var newFoodGroup = new FoodGroupEntity
+        {
+            CompanyId = company.CompanyId,
+            GroupName = foodGroupDto.GroupName,
+            Description = foodGroupDto.Description,
+            CreatedAt = DateTime.Now  // Oluşturulma zamanı
+        };
+
+        _context.FoodGroups.Add(newFoodGroup);
+        await _context.SaveChangesAsync();
+        return Ok(newFoodGroup);  // Yeni eklenen gıda grubunu döndür
+    }
 }
-
 
 
 
