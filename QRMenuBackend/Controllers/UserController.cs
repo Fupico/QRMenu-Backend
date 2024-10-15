@@ -16,18 +16,25 @@ namespace QRMenuBackend.Controllers
             _userService = userService;
         }
 
-[HttpGet("allusers")] // Burada özel bir route tanımlıyoruz
-        public async Task<IActionResult> GetAllUsers()
-        {
-            var users = await _userService.GetAllAsync();
-            return Ok(users);
-        }
 
-[HttpPost("register")] // Burada özel bir route tanımlıyoruz
-        public async Task<IActionResult> AddUser([FromBody] IdentityUser user)
-        {
-            await _userService.AddAsync(user);
-            return Ok();
-        }
+// [FuPiCoSecurity]
+// [HttpGet("allusers")] // Burada özel bir route tanımlıyoruz
+//         public async Task<IActionResult> GetAllUsers()
+//         {
+//             var users = await _userService.GetAllAsync();
+//             return Ok(users);
+//         }
+// [FuPiCoSecurity]
+// [HttpPost("register")] // Burada özel bir route tanımlıyoruz
+//         public async Task<IActionResult> AddUser([FromBody] IdentityUser user)
+//         {
+//             await _userService.AddAsync(user);
+//             return Ok();
+//         }
+
+
+
     }
+
+    
 }

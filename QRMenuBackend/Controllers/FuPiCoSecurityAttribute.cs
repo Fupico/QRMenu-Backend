@@ -33,6 +33,19 @@ public class FuPiCoSecurityAttribute : Attribute, IAuthorizationFilter
                 IssuerSigningKey = new SymmetricSecurityKey(key),
                 ClockSkew = TimeSpan.Zero // Expiry süresinde tolerans yok
             }, out SecurityToken validatedToken);
+
+            // Token içerisindeki userId claim'ini al
+            var jwtToken = (JwtSecurityToken)validatedToken;
+            var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                context.Result = new UnauthorizedResult();
+                return;
+            }
+
+            // userId'yi HttpContext'e kaydet
+            context.HttpContext.Items["userId"] = userId;
         }
         catch
         {

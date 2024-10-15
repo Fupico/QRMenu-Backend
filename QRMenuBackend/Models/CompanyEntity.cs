@@ -18,7 +18,6 @@ namespace QRMenuBackend.Entities
         public string? UpdatedBy { get; set; }  // Kayıt güncelleyen kullanıcı
 
         // İlişkiler
-            public ICollection<FoodGroupEntity> FoodGroups { get; set; } = new List<FoodGroupEntity>();  // Default değer atandı
-
+        public ICollection<FoodGroupEntity> FoodGroups { get; set; } = new List<FoodGroupEntity>();  // Şirketin yemek grupları
     }
 }

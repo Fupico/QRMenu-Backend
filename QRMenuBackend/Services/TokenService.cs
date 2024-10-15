@@ -15,22 +15,24 @@ namespace QRMenuBackend.Services
             _configuration = configuration;
         }
 
-        public string GenerateJwtToken(string username)
+        public string GenerateJwtToken(string username, string userId)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
             if (string.IsNullOrEmpty(jwtSettings["SecretKey"]))
-{
-    throw new InvalidOperationException("SecretKey is not configured.");
-}
+            {
+                throw new InvalidOperationException("SecretKey is not configured.");
+            }
+
             var keyBytes = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? string.Empty);
             var secretKey = new SymmetricSecurityKey(keyBytes);
             var signinCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
 
-
+            // Claims içerisine userId'yi ekliyoruz
             var claims = new[]
             {
                 new Claim(ClaimTypes.Name, username),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim("userId", userId)  // userId'yi ekledik
             };
 
             var tokenOptions = new JwtSecurityToken(

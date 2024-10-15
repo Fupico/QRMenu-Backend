@@ -35,7 +35,7 @@ namespace QRMenuBackend.Controllers
 
             if (user != null && _userManager.CheckPasswordAsync(user, model.Password).Result)
             {
-                var token = _tokenService.GenerateJwtToken(model.Username);
+                var token = _tokenService.GenerateJwtToken(model.Username,user.Id);
                 return SuccessResponse(token, "Login successful");
             }
 

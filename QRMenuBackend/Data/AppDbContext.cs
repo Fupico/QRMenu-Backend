@@ -29,6 +29,9 @@ namespace QRMenuBackend.Data
                 .HasMany(fg => fg.Foods)
                 .WithOne(f => f.FoodGroup)
                 .HasForeignKey(f => f.FoodGroupId);
+
+
+}
         }
     }
-}
+
