@@ -15,7 +15,136 @@ public class MenuController : ControllerBase
     {
         _context = context;
     }
+
 [FuPiCoSecurity]
+[HttpGet("getFoodGroupsByUserId")]
+public async Task<IActionResult> GetActiveFoodGroupsByUserId()
+{
+    // Token'dan gelen userId'yi al
+    var userId = HttpContext.Items["userId"]?.ToString();
+
+    if (string.IsNullOrEmpty(userId))
+    {
+        return Unauthorized("Kullanıcı ID'si bulunamadı.");
+    }
+
+    // userId'ye göre şirketi bul
+    var company = await _context.Companies
+                                .Include(c => c.FoodGroups)
+                                .FirstOrDefaultAsync(c => c.CreatedBy == userId);
+
+    if (company == null)
+    {
+        return NotFound("Kullanıcının sahip olduğu bir şirket bulunamadı.");
+    }
+
+    // Sadece aktif olan gıda gruplarını listele
+    var foodGroups = company.FoodGroups
+                            .Where(fg => fg.Invalidated == 1)
+                            .Select(fg => new FoodGroupDto
+                            {
+                                FoodGroupId = fg.FoodGroupId,
+                                GroupName = fg.GroupName,
+                                Description = fg.Description,
+                                ImageUrl = fg.ImageUrl,
+                                CreatedAt = fg.CreatedAt,
+                                UpdatedAt = fg.UpdatedAt
+                            })
+                            .ToList();
+
+    return Ok(foodGroups);
+}
+
+[HttpGet("getMenu/{Id}")]
+public async Task<IActionResult> GetFoodGroupsAndFoodsFromToken(string Id)
+{
+    // Token'dan gelen userId'yi al
+  
+
+    if (string.IsNullOrEmpty(Id))
+    {
+        return Unauthorized("Kullanıcı ID'si bulunamadı.");
+    }
+
+    // userId'ye göre şirketi bul (CreatedBy alanına göre)
+    var company = await _context.Companies
+                                .Include(c => c.FoodGroups)
+                                .ThenInclude(fg => fg.Foods)
+                                .FirstOrDefaultAsync(c => c.CreatedBy == Id);
+
+    if (company == null)
+    {
+        return NotFound("Kullanıcının sahip olduğu bir şirket bulunamadı.");
+    }
+
+    // Şirkete ait gıda grupları ve yemekleri listele
+    var foodGroups = company.FoodGroups.Select(fg => new
+    {
+        fg.Company.Name,
+        fg.FoodGroupId,
+        fg.GroupName,
+        fg.Description,
+        fg.ImageUrl,
+        fg.CreatedAt,
+        fg.UpdatedAt,
+        Foods = fg.Foods.Select(f => new
+        {
+            f.FoodId,
+            f.Name,
+            f.Description,
+            f.ImageUrl,
+            f.Price,
+            f.CreatedAt,
+            f.UpdatedAt
+        }).ToList()
+    }).ToList();
+
+    return Ok(foodGroups);
+}
+
+
+[HttpGet("getFoodGroupsAndFoodsByCompanyName/{companyName}")]
+public async Task<IActionResult> GetFoodGroupsAndFoodsByCompanyName(string companyName)
+{
+    // Şirketi companyName ile bul
+    var company = await _context.Companies
+                                .Include(c => c.FoodGroups)
+                                .ThenInclude(fg => fg.Foods)
+                                .FirstOrDefaultAsync(c => c.Name == companyName);
+
+    if (company == null)
+    {
+        return NotFound("Şirket bulunamadı.");
+    }
+
+    // Şirkete ait gıda grupları ve yemekleri listele
+    var foodGroups = company.FoodGroups.Select(fg => new
+    {
+        fg.FoodGroupId,
+        fg.GroupName,
+        fg.Description,
+        fg.ImageUrl,
+        fg.CreatedAt,
+        fg.UpdatedAt,
+        Foods = fg.Foods.Select(f => new
+        {
+            f.FoodId,
+            f.Name,
+            f.Description,
+            f.ImageUrl,
+            f.Price,
+            f.CreatedAt,
+            f.UpdatedAt
+        }).ToList()
+    }).ToList();
+
+    return Ok(foodGroups);
+}
+
+
+
+    #region   Company
+    [FuPiCoSecurity]
 [HttpPost("addOrUpdateCompany")]
 public async Task<IActionResult> AddOrUpdateCompany([FromBody] AddCompanyDto companyDto)
 {
@@ -71,6 +200,11 @@ public async Task<IActionResult> AddOrUpdateCompany([FromBody] AddCompanyDto com
     return BadRequest("Geçersiz veri.");
 }
 
+      #endregion
+
+
+#region Food Group
+  
 [FuPiCoSecurity]
 [HttpPost("addFoodGroup")]
 public async Task<IActionResult> AddFoodGroup([FromBody] AddFoodGroupDto foodGroupDto)
@@ -114,61 +248,6 @@ public async Task<IActionResult> AddFoodGroup([FromBody] AddFoodGroupDto foodGro
 }
 
 [FuPiCoSecurity]
-[HttpGet("getFoodGroupsByUserId")]
-public async Task<IActionResult> GetFoodGroupsByUserId()
-{
-    // Token'dan gelen userId'yi al
-    var userId = HttpContext.Items["userId"]?.ToString();
-
-    if (string.IsNullOrEmpty(userId))
-    {
-        return Unauthorized("Kullanıcı ID'si bulunamadı.");
-    }
-
-    // userId'ye göre şirketi bul
-    var company = await _context.Companies
-                                .Include(c => c.FoodGroups)
-                                .FirstOrDefaultAsync(c => c.CreatedBy == userId);
-
-    if (company == null)
-    {
-        return NotFound("Kullanıcının sahip olduğu bir şirket bulunamadı.");
-    }
-
-    // Şirketin gıda gruplarını DTO olarak döndür
-    var foodGroups = company.FoodGroups.Select(fg => new FoodGroupDto
-    {
-        FoodGroupId = fg.FoodGroupId,
-        GroupName = fg.GroupName,
-        Description = fg.Description,
-        ImageUrl = fg.ImageUrl,
-        CreatedAt = fg.CreatedAt,
-        UpdatedAt = fg.UpdatedAt
-    }).ToList();
-
-    return Ok(foodGroups);
-}
-
-[FuPiCoSecurity]
-[HttpDelete("deleteFoodGroup/{id}")]
-public async Task<IActionResult> DeleteFoodGroup(int id)
-{
-    var foodGroup = await _context.FoodGroups.FindAsync(id);
-    if (foodGroup == null)
-    {
-        return NotFound("Gıda grubu bulunamadı.");
-    }
-
-    // Gıda grubunu "sil"
-    foodGroup.Invalidated = -1;
-    foodGroup.UpdatedAt = DateTime.Now;
-
-    _context.FoodGroups.Update(foodGroup);
-    await _context.SaveChangesAsync();
-
-    return Ok("Gıda grubu başarıyla silindi (pasif hale getirildi).");
-}
-[FuPiCoSecurity]
 [HttpPut("updateFoodGroup/{id}")]
 public async Task<IActionResult> UpdateFoodGroup(int id, [FromBody] UpdateFoodGroupDto updateDto)
 {
@@ -193,46 +272,32 @@ public async Task<IActionResult> UpdateFoodGroup(int id, [FromBody] UpdateFoodGr
     await _context.SaveChangesAsync();
 
     return Ok(foodGroup);  // Güncellenmiş gıda grubunu döndür
-}
+}  
+
 [FuPiCoSecurity]
-[HttpGet("getActiveFoodGroupsByUserId")]
-public async Task<IActionResult> GetActiveFoodGroupsByUserId()
+[HttpDelete("deleteFoodGroup/{id}")]
+public async Task<IActionResult> DeleteFoodGroup(int id)
 {
-    // Token'dan gelen userId'yi al
-    var userId = HttpContext.Items["userId"]?.ToString();
-
-    if (string.IsNullOrEmpty(userId))
+    var foodGroup = await _context.FoodGroups.FindAsync(id);
+    if (foodGroup == null)
     {
-        return Unauthorized("Kullanıcı ID'si bulunamadı.");
+        return NotFound("Gıda grubu bulunamadı.");
     }
 
-    // userId'ye göre şirketi bul
-    var company = await _context.Companies
-                                .Include(c => c.FoodGroups)
-                                .FirstOrDefaultAsync(c => c.CreatedBy == userId);
+    // Gıda grubunu "sil"
+    foodGroup.Invalidated = -1;
+    foodGroup.UpdatedAt = DateTime.Now;
 
-    if (company == null)
-    {
-        return NotFound("Kullanıcının sahip olduğu bir şirket bulunamadı.");
-    }
+    _context.FoodGroups.Update(foodGroup);
+    await _context.SaveChangesAsync();
 
-    // Sadece aktif olan gıda gruplarını listele
-    var foodGroups = company.FoodGroups
-                            .Where(fg => fg.Invalidated == 1)
-                            .Select(fg => new FoodGroupDto
-                            {
-                                FoodGroupId = fg.FoodGroupId,
-                                GroupName = fg.GroupName,
-                                Description = fg.Description,
-                                ImageUrl = fg.ImageUrl,
-                                CreatedAt = fg.CreatedAt,
-                                UpdatedAt = fg.UpdatedAt
-                            })
-                            .ToList();
-
-    return Ok(foodGroups);
+    return Ok("Gıda grubu başarıyla silindi (pasif hale getirildi).");
 }
 
+#endregion     
+
+
+#region Food
 
 [FuPiCoSecurity]
 [HttpPost("addFood")]
@@ -270,76 +335,73 @@ public async Task<IActionResult> AddFood([FromBody] AddFoodDto foodDto)
     return Ok(newFood);
 }
 
-
-[FuPiCoSecurity]
-[HttpGet("getFoodsByFoodGroupId/{foodGroupId}")]
-public async Task<IActionResult> GetFoodsByFoodGroupId(int foodGroupId)
-{
-    // FoodGroup'ın olup olmadığını kontrol et
-    var foodGroup = await _context.FoodGroups
-                                  .Include(fg => fg.Foods)
-                                  .FirstOrDefaultAsync(fg => fg.FoodGroupId == foodGroupId);
-
-    if (foodGroup == null)
+     [HttpPut("updateFood/{id}")]
+    public async Task<IActionResult> UpdateFood(int id, [FromBody] UpdateFoodDto updateDto)
     {
-        return NotFound("Gıda grubu bulunamadı.");
-    }
+        var food = await _context.Foods.FindAsync(id);
 
-    // Gıda grubuna ait yemekleri listele
-    var foods = foodGroup.Foods.Select(f => new
-    {
-        f.FoodId,
-        f.Name,
-        f.Description,
-        f.ImageUrl,
-        f.Price,
-        f.CreatedAt,
-        f.UpdatedAt
-    }).ToList();
-
-    return Ok(foods);
-}
-[FuPiCoSecurity]
-[HttpGet("getFoodGroupsAndFoodsByCompanyName/{companyName}")]
-public async Task<IActionResult> GetFoodGroupsAndFoodsByCompanyName(string companyName)
-{
-    // Şirketi companyName ile bul
-    var company = await _context.Companies
-                                .Include(c => c.FoodGroups)
-                                .ThenInclude(fg => fg.Foods)
-                                .FirstOrDefaultAsync(c => c.Name == companyName);
-
-    if (company == null)
-    {
-        return NotFound("Şirket bulunamadı.");
-    }
-
-    // Şirkete ait gıda grupları ve yemekleri listele
-    var foodGroups = company.FoodGroups.Select(fg => new
-    {
-        fg.FoodGroupId,
-        fg.GroupName,
-        fg.Description,
-        fg.ImageUrl,
-        fg.CreatedAt,
-        fg.UpdatedAt,
-        Foods = fg.Foods.Select(f => new
+        if (food == null)
         {
-            f.FoodId,
-            f.Name,
-            f.Description,
-            f.ImageUrl,
-            f.Price,
-            f.CreatedAt,
-            f.UpdatedAt
-        }).ToList()
-    }).ToList();
+            return NotFound(new { message = "Food not found" });
+        }
 
-    return Ok(foodGroups);
-}
-   [HttpGet("check")]
+        // Sadece gelen verileri güncelleyebilirsin
+        if (!string.IsNullOrEmpty(updateDto.Name))
+            food.Name = updateDto.Name;
+
+        if (!string.IsNullOrEmpty(updateDto.Description))
+            food.Description = updateDto.Description;
+
+        if (!string.IsNullOrEmpty(updateDto.ImageUrl))
+            food.ImageUrl = updateDto.ImageUrl;
+
+        if (updateDto.Price.HasValue)
+            food.Price = updateDto.Price.Value;
+
+        if (updateDto.Invalidated.HasValue)
+            food.Invalidated = updateDto.Invalidated.Value;
+
+        food.UpdatedAt = DateTime.UtcNow;  // Güncelleme zamanını ayarla
+
+        _context.Foods.Update(food);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Food updated successfully" });
+    }
+
+  [HttpDelete("deleteFood/{id}")]
+    public async Task<IActionResult> DeleteFood(int id)
+    {
+        var food = await _context.Foods.FindAsync(id);
+
+        if (food == null)
+        {
+            return NotFound(new { message = "Food not found" });
+        }
+
+        // Invalidated alanını -1 yaparak soft delete işlemi yapıyoruz
+        food.Invalidated = -1;
+        food.UpdatedAt = DateTime.UtcNow; // Güncelleme zamanını güncelliyoruz
+
+        _context.Foods.Update(food);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Food invalidated successfully" });
+    }
+#endregion
+
+
+
+       [HttpGet("check")]
     public IActionResult Check()
     {
         return Ok(new { Message = "API çalışıyor!" });
+    }
+
+[FuPiCoSecurity]
+       [HttpGet("check2")]
+    public IActionResult Check2()
+    {
+        return Ok(new { Message = "API JWTLİ çalışıyor!" });
     }
 }
