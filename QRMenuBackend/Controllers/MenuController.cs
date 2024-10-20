@@ -142,6 +142,39 @@ public async Task<IActionResult> GetFoodGroupsAndFoodsByCompanyName(string compa
 
 
     #region   Company
+
+ [FuPiCoSecurity]
+[HttpGet("getCompanyByUserId")]
+public async Task<IActionResult> GetCompanyByUserId()
+{
+    // Token'dan alınan userId'yi al
+    var userId = HttpContext.Items["userId"]?.ToString();
+
+    if (string.IsNullOrEmpty(userId))
+    {
+        return Unauthorized("Kullanıcı ID'si bulunamadı.");
+    }
+
+    // Mevcut bir şirket var mı kontrol et
+    var company = await _context.Companies
+        .FirstOrDefaultAsync(c => c.CreatedBy == userId);
+
+    if (company == null)
+    {
+        return NotFound("Şirket bulunamadı.");
+    }
+
+    // Sadece istenen alanları döndüren bir DTO oluştur
+    var companyDto = new CompanyDto
+    {
+        CompanyId = company.CompanyId,
+        Name = company.Name,
+        Domain = company.Domain,
+        ImageUrl = company.ImageUrl
+    };
+
+    return Ok(companyDto); // Sadece DTO'yu döndür
+}
     [FuPiCoSecurity]
 [HttpPost("addOrUpdateCompany")]
 public async Task<IActionResult> AddOrUpdateCompany([FromBody] AddCompanyDto companyDto)
