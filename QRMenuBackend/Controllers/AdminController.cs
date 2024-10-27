@@ -20,7 +20,7 @@ public class AdminController : ControllerBase
     #region   Company
 
     [FuPiCoSecurity]
-    [HttpGet("getCompany")]
+    [HttpGet("get-company")]
     public async Task<IActionResult> GetCompanyByUserId()
     {
         // Token'dan alınan userId'yi al
@@ -52,67 +52,49 @@ public class AdminController : ControllerBase
         return Ok(companyDto); // Sadece DTO'yu döndür
     }
     [FuPiCoSecurity]
-    [HttpPost("addOrUpdateCompany")]
-    public async Task<IActionResult> AddOrUpdateCompany([FromBody] AddCompanyDto companyDto)
+    [HttpPut("update-company")]
+    public async Task<IActionResult> UpdateCompany([FromBody] UpdateCompanyDto companyDto)
     {
         if (!ModelState.IsValid)
         {
-            return BadRequest(ModelState); // Eğer DTO geçersizse, hata döndür
+            return BadRequest(ModelState);
         }
 
-        // Token'dan alınan userId'yi al
-        var userId = HttpContext.Items["userId"]?.ToString();
-
+        var userId = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
         if (string.IsNullOrEmpty(userId))
         {
             return Unauthorized("Kullanıcı ID'si bulunamadı.");
         }
 
-        if (ModelState.IsValid)
+        // Şirketi userId ile buluyoruz, şirket kullanıcı tarafından daha önce oluşturulmuş olmalı
+        var existingCompany = await _context.Companies
+            .FirstOrDefaultAsync(c => c.CreatedBy == userId);
+
+        if (existingCompany == null)
         {
-            // Mevcut bir şirket var mı kontrol et
-            var existingCompany = await _context.Companies
-                .FirstOrDefaultAsync(c => c.CreatedBy == userId);
-
-            if (existingCompany != null)
-            {
-                // Şirket var, güncelleme yap
-                existingCompany.Name = companyDto.Name;
-                existingCompany.Domain = companyDto.Domain;
-                existingCompany.ImageUrl = companyDto.ImageUrl; // ImageUrl güncelleme
-                existingCompany.UpdatedAt = DateTime.Now;  // Güncelleme zamanı eklenir
-                existingCompany.UpdatedBy = userId;  // Güncelleme zamanı eklenir
-                _context.Companies.Update(existingCompany);
-                await _context.SaveChangesAsync();
-                return Ok(existingCompany);  // Güncellenmiş şirketi döndür
-            }
-            else
-            {
-                // Şirket yok, yeni şirket ekle
-                var newCompany = new CompanyEntity
-                {
-                    Name = companyDto.Name,
-                    Domain = companyDto.Domain,
-                    ImageUrl = companyDto.ImageUrl, // ImageUrl oluşturma sırasında eklenmeli
-                    CreatedBy = userId,  // CreatedBy olarak userId'yi kullanıyoruz
-                    CreatedAt = DateTime.Now  // Şirketin oluşturulma zamanı otomatik olarak atanır
-                };
-
-                _context.Companies.Add(newCompany);
-                await _context.SaveChangesAsync();
-                return Ok(newCompany);  // Yeni eklenmiş şirketi döndür
-            }
+            return NotFound("Kullanıcıya ait şirket bulunamadı.");
         }
 
-        return BadRequest("Geçersiz veri.");
+        // Şirket bilgilerini güncelle
+        existingCompany.Name = companyDto.Name;
+        existingCompany.Domain = $"https://qrmenu.fupico.com/menu/{userId}"; // Domain, userId ile dinamik olarak güncelleniyor
+        existingCompany.ImageUrl = companyDto.ImageUrl;
+        existingCompany.UpdatedAt = DateTime.Now;
+        existingCompany.UpdatedBy = userId;
+
+        _context.Companies.Update(existingCompany);
+        await _context.SaveChangesAsync();
+
+        return Ok(existingCompany);
     }
+
 
     #endregion
 
 
     #region Food Group
     [FuPiCoSecurity]
-    [HttpGet("getFoodGroups")]
+    [HttpGet("get-food-groups")]
     public async Task<IActionResult> GetActiveFoodGroupsByUserId()
     {
         // Token'dan gelen userId'yi al
@@ -152,7 +134,7 @@ public class AdminController : ControllerBase
 
 
     [FuPiCoSecurity]
-    [HttpPost("addFoodGroup")]
+    [HttpPost("add-food-group")]
     public async Task<IActionResult> AddFoodGroup([FromBody] AddFoodGroupDto foodGroupDto)
     {
         if (!ModelState.IsValid)
@@ -194,7 +176,7 @@ public class AdminController : ControllerBase
     }
 
     [FuPiCoSecurity]
-    [HttpPut("updateFoodGroup/{id}")]
+    [HttpPut("update-food-group/{id}")]
     public async Task<IActionResult> UpdateFoodGroup(int id, [FromBody] UpdateFoodGroupDto updateDto)
     {
         if (!ModelState.IsValid)
@@ -221,7 +203,7 @@ public class AdminController : ControllerBase
     }
 
     [FuPiCoSecurity]
-    [HttpDelete("deleteFoodGroup/{id}")]
+    [HttpDelete("delete-food-group/{id}")]
     public async Task<IActionResult> DeleteFoodGroup(int id)
     {
         var foodGroup = await _context.FoodGroups.FindAsync(id);
@@ -245,7 +227,7 @@ public class AdminController : ControllerBase
 
     #region Food
     [FuPiCoSecurity]
-    [HttpGet("getFoodsByFoodGroupId/{foodGroupId}")]
+    [HttpGet("get-foods-by-food-group-id/{foodGroupId}")]
     public async Task<IActionResult> GetFoodsByFoodGroupId(int foodGroupId)
     {
         // Token'dan gelen userId'yi al
@@ -291,7 +273,7 @@ public class AdminController : ControllerBase
 
 
     [FuPiCoSecurity]
-    [HttpPost("addFood")]
+    [HttpPost("add-food")]
     public async Task<IActionResult> AddFood([FromBody] AddFoodDto foodDto)
     {
         if (!ModelState.IsValid)
@@ -326,7 +308,7 @@ public class AdminController : ControllerBase
         return Ok(newFood);
     }
     [FuPiCoSecurity]
-    [HttpPut("updateFood/{id}")]
+    [HttpPut("update-food/{id}")]
     public async Task<IActionResult> UpdateFood(int id, [FromBody] UpdateFoodDto updateDto)
     {
         var food = await _context.Foods.FindAsync(id);
@@ -360,7 +342,7 @@ public class AdminController : ControllerBase
         return Ok(new { message = "Food updated successfully" });
     }
     [FuPiCoSecurity]
-    [HttpDelete("deleteFood/{id}")]
+    [HttpDelete("delete-food/{id}")]
     public async Task<IActionResult> DeleteFood(int id)
     {
         var food = await _context.Foods.FindAsync(id);
@@ -377,13 +359,13 @@ public class AdminController : ControllerBase
         _context.Foods.Update(food);
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Food invalidated successfully" });
+        return Ok(new { message = $"{food.FoodGroupId}" });
     }
     #endregion
 
 
     [FuPiCoSecurity]
-    [HttpPost("uploadImage")]
+    [HttpPost("upload-image")]
     public async Task<IActionResult> UploadImage(IFormFile image)
     {
         // Token'dan gelen userId'yi al

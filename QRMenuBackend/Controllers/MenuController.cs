@@ -18,7 +18,7 @@ public class MenuController : ControllerBase
 
 
 
-    [HttpGet("getMenu/{Id}")]
+    [HttpGet("get-menu/{Id}")]
     public async Task<IActionResult> GetFoodGroupsAndFoodsFromToken(string Id)
     {
         if (string.IsNullOrEmpty(Id))
@@ -65,7 +65,7 @@ public class MenuController : ControllerBase
 
         return Ok(foodGroups);
     }
-    [HttpGet("getMenuWithCompanyName/{companyName}")]
+    [HttpGet("get-menu-with-company-name/{companyName}")]
     public async Task<IActionResult> GetFoodGroupsAndFoodsByCompanyName(string companyName)
     {
         // Şirketi companyName ile bul

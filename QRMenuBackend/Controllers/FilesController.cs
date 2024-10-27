@@ -20,7 +20,7 @@ public class FilesController : ControllerBase
 
 
     [FuPiCoSecurity]
-    [HttpPost("uploadImage")]
+    [HttpPost("upload-image")]
     public async Task<IActionResult> UploadImage(IFormFile image)
     {
         // Token'dan gelen userId'yi al
