@@ -46,8 +46,11 @@ public class AdminController : ControllerBase
             CompanyId = company.CompanyId,
             Name = company.Name,
             Domain = company.Domain,
-            ImageUrl = company.ImageUrl
-        };
+            ImageUrl = company.ImageUrl,
+            IsActiveCompanyImage = company.IsActiveCompanyImage,
+            CompanyUrl = company.CompanyUrl
+       
+};
 
         return Ok(companyDto); // Sadece DTO'yu döndür
     }

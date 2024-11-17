@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
@@ -9,6 +10,15 @@ public class FuPiCoSecurityAttribute : Attribute, IAuthorizationFilter
 {
     public void OnAuthorization(AuthorizationFilterContext context)
     {
+        var configuration = context.HttpContext.RequestServices.GetService(typeof(IConfiguration)) as IConfiguration;
+        var secretKey = configuration["JwtSettings:SecretKey"]; // appsettings.json'dan key alınıyor
+
+        if (string.IsNullOrEmpty(secretKey))
+        {
+            context.Result = new UnauthorizedResult();
+            return;
+        }
+
         var token = context.HttpContext.Request.Headers["FuPiCo-Security"].FirstOrDefault()?.Split(" ").Last();
 
         if (string.IsNullOrEmpty(token))
@@ -18,7 +28,7 @@ public class FuPiCoSecurityAttribute : Attribute, IAuthorizationFilter
         }
 
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes("Your1923TStrongSecretKeyWhichIsAtLeast32CharactersLong12345!");
+        var key = Encoding.UTF8.GetBytes(secretKey);
 
         try
         {

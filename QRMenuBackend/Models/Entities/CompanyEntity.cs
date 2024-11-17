@@ -10,7 +10,9 @@ namespace QRMenuBackend.Entities
         public int CompanyId { get; set; }  // Şirketin benzersiz ID'si
         public required string Name { get; set; }  // Şirketin adı
         public required string Domain { get; set; }  // Şirketin domain adresi ya da subdomain'i
-        public string? ImageUrl { get; set; }  // Şirketin görsel URL'si (nullable)
+        public string? ImageUrl { get; set; }  // Şirketin QR URL'si (nullable)
+        public bool IsActiveCompanyImage { get; set; } = false;  // Şirketin QR URL'si (nullable)
+        public string? CompanyUrl { get; set; }  // Şirketin görsel URL'si (nullable)
 
         // Metadata alanları
         public DateTime CreatedAt { get; set; }  // Kayıt oluşturulma tarihi

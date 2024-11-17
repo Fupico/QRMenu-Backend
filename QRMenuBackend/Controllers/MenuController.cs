@@ -47,8 +47,9 @@ public class MenuController : ControllerBase
                 fg.GroupName,
                 fg.Description,
                 fg.ImageUrl,
-                fg.CreatedAt,
-                fg.UpdatedAt,
+                fg.Company.CompanyUrl,
+                fg.Company.IsActiveCompanyImage,
+             
                 Foods = fg.Foods
                          .Where(f => f.Invalidated != -1)  // invalidated != -1 filtreleme
                          .Select(f => new
@@ -57,9 +58,14 @@ public class MenuController : ControllerBase
                              f.Name,
                              f.Description,
                              f.ImageUrl,
-                             f.Price,
-                             f.CreatedAt,
-                             f.UpdatedAt
+                             Price = f.Price != 0 ? f.Price : 0.0m, // Fiyat boşsa 0.0 atanır
+                             Price2 = f.Price2 ?? 0.0m, // Fiyat2 null ise 0.0 atanır
+                             Price3 = f.Price3 ?? 0.0m, // Fiyat3 null ise 0.0 atanır
+                             IsGroupPrice = f.IsGroupPrice != 0 ? f.IsGroupPrice : 1, // Gruplama fiyatı yoksa varsayılan 1
+                             PriceDesc = string.IsNullOrEmpty(f.PriceDesc) ? "" : f.PriceDesc, // Açıklama yoksa varsayılan
+                             PriceDesc2 = string.IsNullOrEmpty(f.PriceDesc2) ? "" : f.PriceDesc2,
+                             PriceDesc3 = string.IsNullOrEmpty(f.PriceDesc3) ? "" : f.PriceDesc3,
+
                          }).ToList()
             }).ToList();
 
