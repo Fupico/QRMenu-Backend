@@ -48,9 +48,12 @@ public class AdminController : ControllerBase
             Domain = company.Domain,
             ImageUrl = company.ImageUrl,
             IsActiveCompanyImage = company.IsActiveCompanyImage,
-            CompanyUrl = company.CompanyUrl
-       
-};
+            CompanyUrl = company.CompanyUrl,
+            Phone= company.Phone,
+            Adress=company.Adress,
+            SelectedMenu=company.SelectedMenu
+
+        };
 
         return Ok(companyDto); // Sadece DTO'yu döndür
     }
@@ -162,6 +165,7 @@ public class AdminController : ControllerBase
                 Description = foodGroupDto.Description,
                 ImageUrl = foodGroupDto.ImageUrl,
                 CreatedAt = DateTime.Now,
+                UpdatedAt = null,
                 Invalidated = 1 // Default olarak aktif olsun
             };
 
@@ -260,9 +264,14 @@ public class AdminController : ControllerBase
                                       f.Name,
                                       f.Description,
                                       f.ImageUrl,
+                                      f.IsGroupPrice,
                                       f.Price,
-                                      f.CreatedAt,
-                                      f.UpdatedAt
+                                      f.PriceDesc,
+                                      f.Price2,
+                                      f.PriceDesc2,
+                                      f.Price3,
+                                      f.PriceDesc3,
+                               
                                   })
                                   .ToListAsync();
 
@@ -299,9 +308,18 @@ public class AdminController : ControllerBase
             Description = foodDto.Description,
             ImageUrl = foodDto.ImageUrl ?? string.Empty,  // Görsel URL boş ise boş string yap
             Price = foodDto.Price,
+            IsGroupPrice = foodDto.IsGroupPrice,    
+            PriceDesc = foodDto.PriceDesc,
+            PriceDesc2 = foodDto.PriceDesc2,
+            PriceDesc3 = foodDto.PriceDesc3,
+            Price2 = foodDto.Price2,
+            Price3 = foodDto.Price3,
+          
             CreatedAt = DateTime.Now,
             Invalidated = 1  // Default olarak aktif (Invalidated = 1)
-        };
+           
+
+};
 
         // Veritabanına ekle
         _context.Foods.Add(newFood);
@@ -321,7 +339,7 @@ public class AdminController : ControllerBase
             return NotFound(new { message = "Food not found" });
         }
 
-        // Sadece gelen verileri güncelleyebilirsin
+        // Gelen verileri güncelle
         if (!string.IsNullOrEmpty(updateDto.Name))
             food.Name = updateDto.Name;
 
@@ -331,8 +349,26 @@ public class AdminController : ControllerBase
         if (!string.IsNullOrEmpty(updateDto.ImageUrl))
             food.ImageUrl = updateDto.ImageUrl;
 
+        if (updateDto.IsGroupPrice.HasValue)
+            food.IsGroupPrice = updateDto.IsGroupPrice.Value;
+
+        if (!string.IsNullOrEmpty(updateDto.PriceDesc))
+            food.PriceDesc = updateDto.PriceDesc;
+
+        if (!string.IsNullOrEmpty(updateDto.PriceDesc2))
+            food.PriceDesc2 = updateDto.PriceDesc2;
+
+        if (!string.IsNullOrEmpty(updateDto.PriceDesc3))
+            food.PriceDesc3 = updateDto.PriceDesc3;
+
         if (updateDto.Price.HasValue)
             food.Price = updateDto.Price.Value;
+
+        if (updateDto.Price2.HasValue)
+            food.Price2 = updateDto.Price2.Value;
+
+        if (updateDto.Price3.HasValue)
+            food.Price3 = updateDto.Price3.Value;
 
         if (updateDto.Invalidated.HasValue)
             food.Invalidated = updateDto.Invalidated.Value;
@@ -344,6 +380,7 @@ public class AdminController : ControllerBase
 
         return Ok(new { message = "Food updated successfully" });
     }
+
     [FuPiCoSecurity]
     [HttpDelete("delete-food/{id}")]
     public async Task<IActionResult> DeleteFood(int id)

@@ -13,6 +13,9 @@ namespace QRMenuBackend.Entities
         public string? ImageUrl { get; set; }  // Şirketin QR URL'si (nullable)
         public bool IsActiveCompanyImage { get; set; } = false;  // Şirketin QR URL'si (nullable)
         public string? CompanyUrl { get; set; }  // Şirketin görsel URL'si (nullable)
+        public string? Phone { get; set; }  // Şirketin Telefon Numarası (nullable)
+        public string? Adress { get; set; }  // Şirketin Adresi GoogleMaps (nullable)
+        public int SelectedMenu { get; set; } = 1;  // Şirketin Adresi GoogleMaps (nullable)
 
         // Metadata alanları
         public DateTime CreatedAt { get; set; }  // Kayıt oluşturulma tarihi
