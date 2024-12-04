@@ -49,6 +49,7 @@ public class MenuController : ControllerBase
                 fg.ImageUrl,
                 fg.Company.CompanyUrl,
                 fg.Company.IsActiveCompanyImage,
+                fg.Company.SelectedMenu,
              
                 Foods = fg.Foods
                          .Where(f => f.Invalidated != -1)  // invalidated != -1 filtreleme
