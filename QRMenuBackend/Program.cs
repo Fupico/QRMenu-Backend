@@ -1,32 +1,36 @@
+using System.Globalization;
+using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using QRMenuBackend.Data;
+using QRMenuBackend.Infrastructure;
 using QRMenuBackend.Repositories;
 using QRMenuBackend.Services;
-using System.Globalization;
-using System.Text;
-using Microsoft.OpenApi.Models; // OpenApiInfo ve OpenApiSecurityScheme için
-using Microsoft.AspNetCore.Diagnostics;
 
-// Kültürel ayarlar
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
-var builder = WebApplication.CreateBuilder(args);
+var persistentWebRoot = Environment.GetEnvironmentVariable("APP_WEB_ROOT_PATH");
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    WebRootPath = string.IsNullOrWhiteSpace(persistentWebRoot) ? null : persistentWebRoot
+});
 
-
-
-// JWT ayarlarını almak
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-
-// JWT kimlik doğrulama eklemek
 var secretKey = jwtSettings["SecretKey"];
+
 if (string.IsNullOrWhiteSpace(secretKey))
 {
     throw new ArgumentNullException("JWT SecretKey is not provided in the configuration.");
 }
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("DefaultConnection is not configured.");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -43,54 +47,41 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-
-// Veritabanı bağlantısı ekleme
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
 
-// Identity ekleme
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-// Authorization ekleme
 builder.Services.AddAuthorization();
-
-// Repository ve Service ekleme
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<IRepository<IdentityUser>, UserRepository>();
 builder.Services.AddScoped<IService<IdentityUser>, UserService>();
 
-// CORS ekleme
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", builder =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        builder.AllowAnyOrigin()
-               .AllowAnyMethod()
-               .AllowAnyHeader();
+        policy.AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     });
 });
 
-// Controller'ları eklemek
 builder.Services.AddControllers();
-
-// Swagger ekleme
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddSwaggerGen(options =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "FuPiCo Api", Version = "v1" });
-
-    // JWT Bearer token için güvenlik tanımı
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "FuPiCo Api", Version = "v1" });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
         Description = "Please enter a valid token",
         Name = "FuPiCo-Security",
         Type = SecuritySchemeType.ApiKey
     });
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
             new OpenApiSecurityScheme
@@ -101,42 +92,21 @@ builder.Services.AddSwaggerGen(c =>
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
 
 var app = builder.Build();
-app.UseStaticFiles(); // wwwroot içindeki statik dosyaları sunmak için
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "FuPiCo Api");
-        c.RoutePrefix = string.Empty; // Ana dizinde erişim
+PersistentWebRootInitializer.Initialize(app.Environment, app.Configuration, app.Logger);
+await DbInitializer.InitializeAsync(app.Services, app.Configuration);
 
-        // custom.js dosyasını dahil ediyoruz
-        c.InjectJavascript("/swagger-ui/custom.js");
-    });
-}
-
-// Middleware sırası
-app.UseCors("AllowAll");           // CORS middleware'i
-app.UseHttpsRedirection();         // HTTPS yönlendirme
-app.UseHsts();                     // HSTS middleware'i
-
-app.UseAuthentication();           // JWT kimlik doğrulaması middleware'i
-app.UseAuthorization();            // Yetkilendirme middleware'i
-
-// Controller'ları ekleme
-app.MapControllers();
 app.UseExceptionHandler(errorApp =>
 {
     errorApp.Run(async context =>
     {
-        context.Response.StatusCode = 500;
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         var exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
         var exception = exceptionHandlerPathFeature?.Error;
 
@@ -144,5 +114,24 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
+app.UseStaticFiles();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "FuPiCo Api");
+        options.RoutePrefix = string.Empty;
+        options.InjectJavascript("/swagger-ui/custom.js");
+    });
+}
+
+app.UseCors("AllowAll");
+app.UseHttpsRedirection();
+app.UseHsts();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
 
 app.Run();

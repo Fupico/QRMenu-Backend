@@ -10,10 +10,12 @@ using QRMenuBackend.Entities;
 public class AdminController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IWebHostEnvironment _environment;
 
-    public AdminController(AppDbContext context)
+    public AdminController(AppDbContext context, IWebHostEnvironment environment)
     {
         _context = context;
+        _environment = environment;
     }
 
 
@@ -422,7 +424,7 @@ public class AdminController : ControllerBase
         }
 
         // Resimlerin kaydedileceği wwwroot/images klasörünü oluşturuyoruz
-        var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", userId);
+        var folderPath = Path.Combine(_environment.WebRootPath, "images", userId);
 
         // Klasör yoksa oluştur
         if (!Directory.Exists(folderPath))
